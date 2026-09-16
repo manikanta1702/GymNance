@@ -9,6 +9,9 @@ import Workouts from "./pages/Workouts";
 import Nutrition from "./pages/Nutrition";
 import About from "./pages/About";
 import ExerciseDetails from "./pages/ExerciseDetails";
+import WorkoutDetails from "./pages/WorkoutDetails";
+import WorkoutSession from "./pages/WorkoutSession";
+import WorkoutSummary from "./pages/WorkoutSummary";
 
 import AppLayout from "./components/layout/AppLayout";
 
@@ -28,6 +31,9 @@ function App() {
           <Route path="exercises" element={<Exercises />} />
           <Route path="exercises/:id" element={<ExerciseDetails />} />  
           <Route path="workouts" element={<Workouts />} />
+          <Route path="workouts/:id" element={<WorkoutDetails />} />
+          <Route path="workouts/:id/session" element={<WorkoutSession />} />
+          <Route path="workouts/:id/summary" element={<WorkoutSummary />} />
           <Route path="nutrition" element={<Nutrition />} />
         </Route>
       </Routes>
