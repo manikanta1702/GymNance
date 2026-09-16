@@ -12,6 +12,7 @@ import ExerciseDetails from "./pages/ExerciseDetails";
 import WorkoutDetails from "./pages/WorkoutDetails";
 import WorkoutSession from "./pages/WorkoutSession";
 import WorkoutSummary from "./pages/WorkoutSummary";
+import WorkoutHistory from "./pages/WorkoutHistory";
 
 import AppLayout from "./components/layout/AppLayout";
 
@@ -27,6 +28,7 @@ function App() {
 
         {/* GymNance App */}
         <Route path="/app" element={<AppLayout />}>
+        <Route path="history" element={<WorkoutHistory />} />
           <Route path="dashboard" element={<Dashboard />} />  
           <Route path="exercises" element={<Exercises />} />
           <Route path="exercises/:id" element={<ExerciseDetails />} />  

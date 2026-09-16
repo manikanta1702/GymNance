@@ -4,6 +4,7 @@ import {
   Dumbbell,
   ClipboardList,
   Apple,
+  History,
   TrendingUp,
   Bot,
   Settings,
@@ -41,6 +42,11 @@ export default function AppLayout() {
       icon: Apple,
     },
     {
+      name: "History",
+      path: "/app/history",
+      icon: History,
+    },
+    {
       name: "Progress",
       path: "/app/progress",
       icon: TrendingUp,
@@ -61,9 +67,11 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-[#070609] text-[#F7F3EA]">
+
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 border-b border-white/[0.08] bg-[#070609]/90 backdrop-blur-xl">
         <div className="h-full px-5 flex items-center justify-between">
+
           <NavLink
             to="/app/dashboard"
             className="text-xl font-black tracking-tight"
@@ -73,19 +81,28 @@ export default function AppLayout() {
           </NavLink>
 
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={() =>
+              setMobileMenuOpen(!mobileMenuOpen)
+            }
             className="w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center justify-center"
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            {mobileMenuOpen ? (
+              <X size={20} />
+            ) : (
+              <Menu size={20} />
+            )}
           </button>
+
         </div>
       </header>
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-40 w-64 border-r border-white/[0.08] bg-[#09080C] flex-col">
+
         {/* Logo */}
         <div className="px-7 py-7 border-b border-white/[0.06]">
+
           <NavLink
             to="/app/dashboard"
             className="text-2xl font-black tracking-tight"
@@ -97,10 +114,12 @@ export default function AppLayout() {
           <p className="mt-2 text-[10px] tracking-[0.25em] text-[#5E5964]">
             TRAIN SMARTER
           </p>
+
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2">
+
           {navigation.map((item) => {
             const Icon = item.icon;
 
@@ -121,19 +140,25 @@ export default function AppLayout() {
               </NavLink>
             );
           })}
+
         </nav>
 
         {/* Bottom Section */}
         <div className="p-4 border-t border-white/[0.06]">
+
           {/* User */}
           <div className="flex items-center gap-3 px-3 py-3 mb-2">
+
             <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center">
               <span className="text-sm font-bold text-[#D4AF37]">
-                {user?.full_name?.charAt(0)?.toUpperCase() || "U"}
+                {user?.full_name
+                  ?.charAt(0)
+                  ?.toUpperCase() || "U"}
               </span>
             </div>
 
             <div className="min-w-0">
+
               <p className="text-sm font-semibold truncate">
                 {user?.full_name || "User"}
               </p>
@@ -141,9 +166,12 @@ export default function AppLayout() {
               <p className="text-[11px] text-[#5E5964] truncate">
                 {user?.email || ""}
               </p>
+
             </div>
+
           </div>
 
+          {/* Settings */}
           <NavLink
             to="/app/settings"
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#8F8998] hover:text-[#F7F3EA] hover:bg-white/[0.04] transition-all"
@@ -152,6 +180,7 @@ export default function AppLayout() {
             Settings
           </NavLink>
 
+          {/* Logout */}
           <button
             onClick={handleLogout}
             className="w-full mt-1 flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#8F8998] hover:text-red-400 hover:bg-red-500/[0.05] transition-all"
@@ -159,13 +188,16 @@ export default function AppLayout() {
             <LogOut size={18} />
             Logout
           </button>
+
         </div>
       </aside>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-[#070609] pt-20">
+
           <nav className="px-5 py-6 space-y-2">
+
             {navigation.map((item) => {
               const Icon = item.icon;
 
@@ -173,7 +205,9 @@ export default function AppLayout() {
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() =>
+                    setMobileMenuOpen(false)
+                  }
                   className={({ isActive }) =>
                     `flex items-center gap-4 px-4 py-4 rounded-xl text-base font-medium ${
                       isActive
@@ -189,9 +223,12 @@ export default function AppLayout() {
             })}
 
             <div className="pt-5 mt-5 border-t border-white/[0.08]">
+
               <NavLink
                 to="/app/settings"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() =>
+                  setMobileMenuOpen(false)
+                }
                 className="flex items-center gap-4 px-4 py-4 rounded-xl text-[#8F8998]"
               >
                 <Settings size={20} />
@@ -205,8 +242,11 @@ export default function AppLayout() {
                 <LogOut size={20} />
                 Logout
               </button>
+
             </div>
+
           </nav>
+
         </div>
       )}
 
@@ -214,6 +254,7 @@ export default function AppLayout() {
       <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
         <Outlet />
       </main>
+
     </div>
   );
 }
