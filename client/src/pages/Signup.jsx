@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Eye,
   EyeOff,
@@ -10,6 +11,70 @@ import {
 export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
+
+  const handleSignup = async (e) => {
+  e.preventDefault();
+
+  setError("");
+  setSuccess("");
+
+  if (password !== confirmPassword) {
+    setError("Passwords do not match.");
+    return;
+  }
+
+  if (password.length < 6) {
+    setError("Password must be at least 6 characters.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const response = await fetch(
+      "http://localhost:5000/api/auth/signup",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          full_name: fullName,
+          email: email,
+          password: password,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.message || "Signup failed.");
+      return;
+    }
+
+    setSuccess("Account created successfully!");
+
+    setTimeout(() => {
+      navigate("/login");
+    }, 1500);
+  } catch (error) {
+    setError("Unable to connect to the server.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <main className="min-h-screen bg-[#070609] text-[#F7F3EA] relative overflow-hidden">
@@ -210,7 +275,18 @@ export default function Signup() {
             "
           >
 
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={handleSignup}>
+                {error && (
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                     {error}
+                    </div>
+                )}
+
+                {success && (
+                    <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+                    {success}
+                    </div>
+                )}
 
 
               {/* =================================================
@@ -236,6 +312,8 @@ export default function Signup() {
                   id="name"
                   type="text"
                   placeholder="Enter your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   className="
                     w-full
                     h-12
@@ -281,6 +359,8 @@ export default function Signup() {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="
                     w-full
                     h-12
@@ -328,6 +408,8 @@ export default function Signup() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="
                       w-full
                       h-12
@@ -411,6 +493,8 @@ export default function Signup() {
                         : "password"
                     }
                     placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     className="
                       w-full
                       h-12
@@ -563,7 +647,7 @@ export default function Signup() {
                 "
               >
 
-                Create Account
+                {loading ? "Creating Account..." : "Create Account"}
 
                 <ArrowRight
                   size={18}
