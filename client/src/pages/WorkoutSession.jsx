@@ -64,6 +64,9 @@ export default function WorkoutSession() {
     return initialSets;
   });
 
+  // Saving state
+  const [isSaving, setIsSaving] = useState(false);
+
   if (!workout) {
     return (
       <div className="min-h-screen bg-[#070609] px-5 py-10 text-[#F7F3EA] sm:px-8">
@@ -248,35 +251,126 @@ export default function WorkoutSession() {
     }
   };
 
-  // Finish workout
-  const finishWorkout = () => {
-    navigate(
-      `/app/workouts/${workout.id}/summary`,
-      {
-        state: {
-          summary: {
+  // Finish workout and save to PostgreSQL
+  const finishWorkout = async () => {
+    if (isSaving) return;
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      alert("Your login session has expired. Please login again.");
+      navigate("/login");
+      return;
+    }
+
+    setIsSaving(true);
+
+    // Convert frontend exerciseSets object
+    // into database-friendly array
+    const setsToSave = [];
+
+    Object.entries(exerciseSets).forEach(
+      ([exerciseId, sets]) => {
+        sets.forEach((set, index) => {
+          setsToSave.push({
+            exerciseId: Number(exerciseId),
+            setNumber: index + 1,
+            weight: Number(set.weight) || 0,
+            reps: Number(set.reps) || 0,
+            completed: Boolean(set.completed),
+          });
+        });
+      }
+    );
+
+    const summary = {
+      workoutName: workout.name,
+
+      exercisesCompleted:
+        completedExercises,
+
+      totalExercises:
+        workoutExercises.length,
+
+      totalSets,
+
+      completedSets:
+        totalCompletedSets,
+
+      totalReps,
+
+      totalVolume,
+
+      exerciseSets,
+    };
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/workouts/sessions",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            workoutId: workout.id,
+
             workoutName: workout.name,
 
-            exercisesCompleted:
-              completedExercises,
-
-            totalExercises:
-              workoutExercises.length,
+            completedAt:
+              new Date().toISOString(),
 
             totalSets,
-
-            completedSets:
-              totalCompletedSets,
 
             totalReps,
 
             totalVolume,
 
-            exerciseSets,
-          },
-        },
+            sets: setsToSave,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to save workout"
+        );
       }
-    );
+
+      console.log(
+        "Workout saved successfully:",
+        data
+      );
+
+      // Move to workout summary only
+      // after successful database save
+      navigate(
+        `/app/workouts/${workout.id}/summary`,
+        {
+          state: {
+            summary,
+          },
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Workout save error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Could not save workout. Please try again."
+      );
+
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -418,7 +512,8 @@ export default function WorkoutSession() {
               <button
                 type="button"
                 onClick={resetCurrentExercise}
-                className="inline-flex items-center gap-2 text-xs text-[#8F8998] transition hover:text-[#D4AF37]"
+                disabled={isSaving}
+                className="inline-flex items-center gap-2 text-xs text-[#8F8998] transition hover:text-[#D4AF37] disabled:opacity-40"
               >
                 <RotateCcw size={14} />
                 Reset
@@ -462,6 +557,7 @@ export default function WorkoutSession() {
                       min="0"
                       placeholder="kg"
                       value={set.weight}
+                      disabled={isSaving}
                       onChange={(e) =>
                         updateSet(
                           index,
@@ -469,7 +565,7 @@ export default function WorkoutSession() {
                           e.target.value
                         )
                       }
-                      className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30"
+                      className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30 disabled:opacity-50"
                     />
 
                     <input
@@ -477,6 +573,7 @@ export default function WorkoutSession() {
                       min="0"
                       placeholder="reps"
                       value={set.reps}
+                      disabled={isSaving}
                       onChange={(e) =>
                         updateSet(
                           index,
@@ -484,7 +581,7 @@ export default function WorkoutSession() {
                           e.target.value
                         )
                       }
-                      className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30"
+                      className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30 disabled:opacity-50"
                     />
 
                     <button
@@ -492,7 +589,8 @@ export default function WorkoutSession() {
                       onClick={() =>
                         completeSet(index)
                       }
-                      className={`mx-auto flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+                      disabled={isSaving}
+                      className={`mx-auto flex h-9 w-9 items-center justify-center rounded-lg border transition disabled:opacity-40 ${
                         set.completed
                           ? "border-[#D4AF37]/30 bg-[#D4AF37] text-[#070609]"
                           : "border-white/[0.08] bg-white/[0.025] text-[#5E5964] hover:border-[#D4AF37]/20 hover:text-[#D4AF37]"
@@ -512,7 +610,8 @@ export default function WorkoutSession() {
             <button
               type="button"
               onClick={addSet}
-              className="mt-4 w-full rounded-xl border border-dashed border-white/[0.08] py-3 text-xs font-semibold text-[#8F8998] transition hover:border-[#D4AF37]/20 hover:text-[#D4AF37]"
+              disabled={isSaving}
+              className="mt-4 w-full rounded-xl border border-dashed border-white/[0.08] py-3 text-xs font-semibold text-[#8F8998] transition hover:border-[#D4AF37]/20 hover:text-[#D4AF37] disabled:opacity-40"
             >
               + Add Set
             </button>
@@ -605,7 +704,10 @@ export default function WorkoutSession() {
           <button
             type="button"
             onClick={previousExercise}
-            disabled={currentExercise === 0}
+            disabled={
+              currentExercise === 0 ||
+              isSaving
+            }
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3.5 text-sm font-semibold text-[#8F8998] transition hover:text-[#F7F3EA] disabled:cursor-not-allowed disabled:opacity-30"
           >
             <ArrowLeft size={17} />
@@ -618,7 +720,8 @@ export default function WorkoutSession() {
             <button
               type="button"
               onClick={nextExercise}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-4 py-3.5 text-sm font-bold text-[#070609] transition hover:bg-[#F3D58A]"
+              disabled={isSaving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-4 py-3.5 text-sm font-bold text-[#070609] transition hover:bg-[#F3D58A] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next Exercise
               <ArrowRight size={17} />
@@ -629,10 +732,14 @@ export default function WorkoutSession() {
             <button
               type="button"
               onClick={finishWorkout}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-4 py-3.5 text-sm font-bold text-[#070609] transition hover:bg-[#F3D58A]"
+              disabled={isSaving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-4 py-3.5 text-sm font-bold text-[#070609] transition hover:bg-[#F3D58A] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trophy size={17} />
-              Finish Workout
+
+              {isSaving
+                ? "Saving Workout..."
+                : "Finish Workout"}
             </button>
 
           )}
@@ -648,10 +755,11 @@ export default function WorkoutSession() {
               <button
                 key={item.id}
                 type="button"
+                disabled={isSaving}
                 onClick={() =>
                   setCurrentExercise(index)
                 }
-                className={`h-2 rounded-full transition-all ${
+                className={`h-2 rounded-full transition-all disabled:opacity-40 ${
                   index === currentExercise
                     ? "w-7 bg-[#D4AF37]"
                     : exerciseSets[item.id]?.some(
