@@ -52,7 +52,7 @@ export default function Login() {
     localStorage.setItem("user", JSON.stringify(data.user));
 
     // Go to the GymNance app
-    navigate("/app/exercises");
+    navigate("/app/dashboard");
   } catch (error) {
     setError("Unable to connect to the server.");
   } finally {
