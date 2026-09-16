@@ -34,13 +34,35 @@ export default function WorkoutSession() {
 
   const [currentExercise, setCurrentExercise] = useState(0);
 
-  const [sets, setSets] = useState([
+  /*
+    Stores sets separately for every exercise.
+
+    Example:
+
     {
-      weight: "",
-      reps: "",
-      completed: false,
-    },
-  ]);
+      1: [
+        { weight: "40", reps: "10", completed: true }
+      ],
+      2: [
+        { weight: "30", reps: "10", completed: false }
+      ]
+    }
+  */
+  const [exerciseSets, setExerciseSets] = useState(() => {
+    const initialSets = {};
+
+    workoutExercises.forEach((exercise) => {
+      initialSets[exercise.id] = [
+        {
+          weight: "",
+          reps: "",
+          completed: false,
+        },
+      ];
+    });
+
+    return initialSets;
+  });
 
   if (!workout) {
     return (
@@ -73,114 +95,189 @@ export default function WorkoutSession() {
 
   const exercise = workoutExercises[currentExercise];
 
-  const completedSets = sets.filter(
+  if (!exercise) {
+    return null;
+  }
+
+  const currentSets = exerciseSets[exercise.id] || [];
+
+  const completedSets = currentSets.filter(
     (set) => set.completed
   ).length;
+
+  /*
+    Count exercises where at least one set has been completed.
+  */
+  const completedExercises = workoutExercises.filter(
+    (item) =>
+      exerciseSets[item.id]?.some(
+        (set) => set.completed
+      )
+  ).length;
+
+  const totalSets = Object.values(exerciseSets).reduce(
+    (total, sets) => total + sets.length,
+    0
+  );
+
+  const totalCompletedSets = Object.values(
+    exerciseSets
+  ).reduce(
+    (total, sets) =>
+      total +
+      sets.filter((set) => set.completed).length,
+    0
+  );
+
+  const totalReps = Object.values(exerciseSets).reduce(
+    (total, sets) =>
+      total +
+      sets.reduce(
+        (setTotal, set) =>
+          setTotal +
+          (Number(set.reps) || 0),
+        0
+      ),
+    0
+  );
+
+  const totalVolume = Object.values(exerciseSets).reduce(
+    (total, sets) =>
+      total +
+      sets.reduce((setTotal, set) => {
+        const weight = Number(set.weight) || 0;
+        const reps = Number(set.reps) || 0;
+
+        return setTotal + weight * reps;
+      }, 0),
+    0
+  );
 
   const progress =
     workoutExercises.length > 0
       ? Math.round(
-          ((currentExercise +
-            (completedSets > 0 ? 0.5 : 0)) /
+          (completedExercises /
             workoutExercises.length) *
             100
         )
       : 0;
 
-  // Update weight or reps
+  // Update a set
   const updateSet = (index, field, value) => {
-    setSets((previous) =>
-      previous.map((set, setIndex) =>
-        setIndex === index
-          ? {
-              ...set,
-              [field]: value,
-            }
-          : set
-      )
-    );
-  };
-
-  // Add another set
-  const addSet = () => {
-    setSets((previous) => [
+    setExerciseSets((previous) => ({
       ...previous,
-      {
-        weight: "",
-        reps: "",
-        completed: false,
-      },
-    ]);
+
+      [exercise.id]: previous[exercise.id].map(
+        (set, setIndex) =>
+          setIndex === index
+            ? {
+                ...set,
+                [field]: value,
+              }
+            : set
+      ),
+    }));
   };
 
-  // Complete / uncomplete set
+  // Add a new set
+  const addSet = () => {
+    setExerciseSets((previous) => ({
+      ...previous,
+
+      [exercise.id]: [
+        ...previous[exercise.id],
+        {
+          weight: "",
+          reps: "",
+          completed: false,
+        },
+      ],
+    }));
+  };
+
+  // Complete / uncomplete a set
   const completeSet = (index) => {
-    setSets((previous) =>
-      previous.map((set, setIndex) =>
-        setIndex === index
-          ? {
-              ...set,
-              completed: !set.completed,
-            }
-          : set
-      )
-    );
+    setExerciseSets((previous) => ({
+      ...previous,
+
+      [exercise.id]: previous[exercise.id].map(
+        (set, setIndex) =>
+          setIndex === index
+            ? {
+                ...set,
+                completed: !set.completed,
+              }
+            : set
+      ),
+    }));
   };
 
   // Reset current exercise
-  const resetSets = () => {
-    setSets([
-      {
-        weight: "",
-        reps: "",
-        completed: false,
-      },
-    ]);
+  const resetCurrentExercise = () => {
+    setExerciseSets((previous) => ({
+      ...previous,
+
+      [exercise.id]: [
+        {
+          weight: "",
+          reps: "",
+          completed: false,
+        },
+      ],
+    }));
   };
 
-  // Go to next exercise
+  // Next exercise
   const nextExercise = () => {
-    if (currentExercise < workoutExercises.length - 1) {
-      setCurrentExercise((previous) => previous + 1);
-      resetSets();
+    if (
+      currentExercise <
+      workoutExercises.length - 1
+    ) {
+      setCurrentExercise(
+        (previous) => previous + 1
+      );
     }
   };
 
-  // Go to previous exercise
+  // Previous exercise
   const previousExercise = () => {
     if (currentExercise > 0) {
-      setCurrentExercise((previous) => previous - 1);
-      resetSets();
+      setCurrentExercise(
+        (previous) => previous - 1
+      );
     }
   };
 
   // Finish workout
   const finishWorkout = () => {
-    const totalSets = sets.length;
+    navigate(
+      `/app/workouts/${workout.id}/summary`,
+      {
+        state: {
+          summary: {
+            workoutName: workout.name,
 
-    const totalVolume = sets.reduce((total, set) => {
-      const weight = Number(set.weight) || 0;
-      const reps = Number(set.reps) || 0;
+            exercisesCompleted:
+              completedExercises,
 
-      return total + weight * reps;
-    }, 0);
+            totalExercises:
+              workoutExercises.length,
 
-    navigate(`/app/workouts/${workout.id}/summary`, {
-      state: {
-        summary: {
-          workoutName: workout.name,
-          exercisesCompleted: currentExercise + 1,
-          totalExercises: workoutExercises.length,
-          totalSets,
-          totalVolume,
+            totalSets,
+
+            completedSets:
+              totalCompletedSets,
+
+            totalReps,
+
+            totalVolume,
+
+            exerciseSets,
+          },
         },
-      },
-    });
+      }
+    );
   };
-
-  if (!exercise) {
-    return null;
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#070609] px-4 py-6 text-[#F7F3EA] sm:px-8 lg:px-10">
@@ -208,13 +305,12 @@ export default function WorkoutSession() {
               size={14}
               className="text-[#D4AF37]"
             />
-
             <span>Workout Mode</span>
           </div>
 
         </div>
 
-        {/* Workout heading */}
+        {/* Heading */}
         <section className="mt-7">
 
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4AF37]">
@@ -224,6 +320,7 @@ export default function WorkoutSession() {
           <div className="mt-2 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
 
             <div>
+
               <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
                 {workout.name}
               </h1>
@@ -232,29 +329,30 @@ export default function WorkoutSession() {
                 Exercise {currentExercise + 1} of{" "}
                 {workoutExercises.length}
               </p>
+
             </div>
 
             <div className="text-right">
 
               <p className="text-2xl font-black text-[#D4AF37]">
-                {Math.min(progress, 100)}%
+                {progress}%
               </p>
 
               <p className="text-[9px] uppercase tracking-wider text-[#5E5964]">
-                Progress
+                Workout Progress
               </p>
 
             </div>
 
           </div>
 
-          {/* Progress bar */}
+          {/* Progress */}
           <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
 
             <div
               className="h-full rounded-full bg-[#D4AF37] transition-all duration-500"
               style={{
-                width: `${Math.min(progress, 100)}%`,
+                width: `${progress}%`,
               }}
             />
 
@@ -262,7 +360,7 @@ export default function WorkoutSession() {
 
         </section>
 
-        {/* Current exercise */}
+        {/* Current Exercise */}
         <section className="mt-8 overflow-hidden rounded-3xl border border-[#D4AF37]/15 bg-gradient-to-br from-[#D4AF37]/10 via-white/[0.025] to-purple-900/10">
 
           {/* Exercise header */}
@@ -290,7 +388,8 @@ export default function WorkoutSession() {
                 </h2>
 
                 <p className="mt-2 text-sm text-[#8F8998]">
-                  {exercise.muscle} • {exercise.equipment}
+                  {exercise.muscle} •{" "}
+                  {exercise.equipment}
                 </p>
 
               </div>
@@ -318,7 +417,7 @@ export default function WorkoutSession() {
 
               <button
                 type="button"
-                onClick={resetSets}
+                onClick={resetCurrentExercise}
                 className="inline-flex items-center gap-2 text-xs text-[#8F8998] transition hover:text-[#D4AF37]"
               >
                 <RotateCcw size={14} />
@@ -327,7 +426,7 @@ export default function WorkoutSession() {
 
             </div>
 
-            {/* Table header */}
+            {/* Table heading */}
             <div className="mt-6 grid grid-cols-[50px_1fr_1fr_48px] gap-2 px-2 text-[9px] uppercase tracking-wider text-[#5E5964] sm:grid-cols-[60px_1fr_1fr_60px]">
 
               <span>Set</span>
@@ -342,68 +441,70 @@ export default function WorkoutSession() {
             {/* Sets */}
             <div className="mt-2 space-y-2">
 
-              {sets.map((set, index) => (
+              {currentSets.map(
+                (set, index) => (
 
-                <div
-                  key={index}
-                  className={`grid grid-cols-[50px_1fr_1fr_48px] items-center gap-2 rounded-xl border p-2 transition sm:grid-cols-[60px_1fr_1fr_60px] ${
-                    set.completed
-                      ? "border-[#D4AF37]/20 bg-[#D4AF37]/[0.06]"
-                      : "border-white/[0.06] bg-black/20"
-                  }`}
-                >
-
-                  <div className="text-center text-sm font-bold text-[#8F8998]">
-                    {index + 1}
-                  </div>
-
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="kg"
-                    value={set.weight}
-                    onChange={(e) =>
-                      updateSet(
-                        index,
-                        "weight",
-                        e.target.value
-                      )
-                    }
-                    className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30"
-                  />
-
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="reps"
-                    value={set.reps}
-                    onChange={(e) =>
-                      updateSet(
-                        index,
-                        "reps",
-                        e.target.value
-                      )
-                    }
-                    className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      completeSet(index)
-                    }
-                    className={`mx-auto flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+                  <div
+                    key={index}
+                    className={`grid grid-cols-[50px_1fr_1fr_48px] items-center gap-2 rounded-xl border p-2 transition sm:grid-cols-[60px_1fr_1fr_60px] ${
                       set.completed
-                        ? "border-[#D4AF37]/30 bg-[#D4AF37] text-[#070609]"
-                        : "border-white/[0.08] bg-white/[0.025] text-[#5E5964] hover:border-[#D4AF37]/20 hover:text-[#D4AF37]"
+                        ? "border-[#D4AF37]/20 bg-[#D4AF37]/[0.06]"
+                        : "border-white/[0.06] bg-black/20"
                     }`}
                   >
-                    <Check size={16} />
-                  </button>
 
-                </div>
+                    <div className="text-center text-sm font-bold text-[#8F8998]">
+                      {index + 1}
+                    </div>
 
-              ))}
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="kg"
+                      value={set.weight}
+                      onChange={(e) =>
+                        updateSet(
+                          index,
+                          "weight",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30"
+                    />
+
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="reps"
+                      value={set.reps}
+                      onChange={(e) =>
+                        updateSet(
+                          index,
+                          "reps",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[#F7F3EA] outline-none placeholder:text-[#5E5964] focus:border-[#D4AF37]/30"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        completeSet(index)
+                      }
+                      className={`mx-auto flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+                        set.completed
+                          ? "border-[#D4AF37]/30 bg-[#D4AF37] text-[#070609]"
+                          : "border-white/[0.08] bg-white/[0.025] text-[#5E5964] hover:border-[#D4AF37]/20 hover:text-[#D4AF37]"
+                      }`}
+                    >
+                      <Check size={16} />
+                    </button>
+
+                  </div>
+
+                )
+              )}
 
             </div>
 
@@ -416,7 +517,7 @@ export default function WorkoutSession() {
               + Add Set
             </button>
 
-            {/* Set summary */}
+            {/* Current exercise summary */}
             <div className="mt-5 flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
 
               <span className="text-xs text-[#8F8998]">
@@ -424,7 +525,8 @@ export default function WorkoutSession() {
               </span>
 
               <span className="text-sm font-black text-[#D4AF37]">
-                {completedSets} / {sets.length}
+                {completedSets} /{" "}
+                {currentSets.length}
               </span>
 
             </div>
@@ -450,6 +552,47 @@ export default function WorkoutSession() {
             <p className="mt-1 text-xs leading-relaxed text-[#8F8998]">
               {exercise.tips?.[0] ||
                 "Focus on controlled movement and maintain proper form throughout the exercise."}
+            </p>
+
+          </div>
+
+        </section>
+
+        {/* Workout totals */}
+        <section className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-center">
+
+            <p className="text-xl font-black text-[#D4AF37]">
+              {completedExercises}
+            </p>
+
+            <p className="mt-1 text-[9px] uppercase tracking-wider text-[#5E5964]">
+              Exercises
+            </p>
+
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-center">
+
+            <p className="text-xl font-black text-[#D4AF37]">
+              {totalCompletedSets}
+            </p>
+
+            <p className="mt-1 text-[9px] uppercase tracking-wider text-[#5E5964]">
+              Sets Done
+            </p>
+
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-center">
+
+            <p className="text-xl font-black text-[#D4AF37]">
+              {totalVolume}
+            </p>
+
+            <p className="mt-1 text-[9px] uppercase tracking-wider text-[#5E5964]">
+              Volume
             </p>
 
           </div>
@@ -488,9 +631,7 @@ export default function WorkoutSession() {
               onClick={finishWorkout}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-4 py-3.5 text-sm font-bold text-[#070609] transition hover:bg-[#F3D58A]"
             >
-              <Trophy
-                size={17}
-              />
+              <Trophy size={17} />
               Finish Workout
             </button>
 
@@ -498,7 +639,7 @@ export default function WorkoutSession() {
 
         </section>
 
-        {/* Exercise navigation dots */}
+        {/* Exercise dots */}
         <div className="flex justify-center gap-2 py-7">
 
           {workoutExercises.map(
@@ -507,14 +648,16 @@ export default function WorkoutSession() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => {
-                  setCurrentExercise(index);
-                  resetSets();
-                }}
+                onClick={() =>
+                  setCurrentExercise(index)
+                }
                 className={`h-2 rounded-full transition-all ${
                   index === currentExercise
                     ? "w-7 bg-[#D4AF37]"
-                    : index < currentExercise
+                    : exerciseSets[item.id]?.some(
+                          (set) =>
+                            set.completed
+                        )
                       ? "w-2 bg-[#D4AF37]/40"
                       : "w-2 bg-white/[0.08]"
                 }`}
