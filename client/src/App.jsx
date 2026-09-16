@@ -8,6 +8,7 @@ import Exercises from "./pages/Exercises";
 import Workouts from "./pages/Workouts";
 import Nutrition from "./pages/Nutrition";
 import About from "./pages/About";
+import ExerciseDetails from "./pages/ExerciseDetails";
 
 import AppLayout from "./components/layout/AppLayout";
 
@@ -25,6 +26,7 @@ function App() {
         <Route path="/app" element={<AppLayout />}>
           <Route path="dashboard" element={<Dashboard />} />  
           <Route path="exercises" element={<Exercises />} />
+          <Route path="exercises/:id" element={<ExerciseDetails />} />  
           <Route path="workouts" element={<Workouts />} />
           <Route path="nutrition" element={<Nutrition />} />
         </Route>
