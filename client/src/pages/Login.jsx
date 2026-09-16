@@ -1,8 +1,64 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowRight, Dumbbell } from "lucide-react";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
+  e.preventDefault();
+
+  setError("");
+
+  if (!email || !password) {
+    setError("Please enter your email and password.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const response = await fetch(
+      "http://localhost:5000/api/auth/login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.message || "Login failed.");
+      return;
+    }
+
+    // Save authentication data
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    // Go to the GymNance app
+    navigate("/app/exercises");
+  } catch (error) {
+    setError("Unable to connect to the server.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <main className="min-h-screen bg-[#070609] text-[#F7F3EA] relative overflow-hidden">
@@ -201,7 +257,12 @@ export default function Login() {
             "
           >
 
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={handleLogin}>
+                {error && (
+  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+    {error}
+  </div>
+)}
 
 
               {/* EMAIL */}
@@ -225,6 +286,8 @@ export default function Login() {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="
                     w-full
                     h-12
@@ -285,6 +348,8 @@ export default function Login() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="
                       w-full
                       h-12
@@ -391,7 +456,7 @@ export default function Login() {
                 "
               >
 
-                Sign In
+                {loading ? "Signing In..." : "Sign In"}
 
                 <ArrowRight
                   size={18}
