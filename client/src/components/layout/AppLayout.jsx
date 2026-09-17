@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import AIChatWidget from "../AIChatWidget";
 import {
   LayoutDashboard,
   Dumbbell,
@@ -254,6 +255,7 @@ export default function AppLayout() {
       <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
         <Outlet />
       </main>
+      <AIChatWidget />
 
     </div>
   );

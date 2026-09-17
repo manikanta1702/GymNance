@@ -14,6 +14,7 @@ import WorkoutSession from "./pages/WorkoutSession";
 import WorkoutSummary from "./pages/WorkoutSummary";
 import WorkoutHistory from "./pages/WorkoutHistory";
 import Progress from "./pages/Progress";
+import AICoach from "./pages/AI_Coach";
 
 import AppLayout from "./components/layout/AppLayout";
 
@@ -38,7 +39,8 @@ function App() {
           <Route path="workouts/:id/session" element={<WorkoutSession />} />
           <Route path="workouts/:id/summary" element={<WorkoutSummary />} />
           <Route path="nutrition" element={<Nutrition />} />
-          <Route path="progress" element={<Progress />} />  
+          <Route path="progress" element={<Progress />} />
+          <Route path="ai-coach" element={<AICoach />} />  
         </Route>
       </Routes>
     </BrowserRouter>
