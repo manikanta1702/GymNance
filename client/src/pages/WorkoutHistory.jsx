@@ -48,6 +48,7 @@ export default function WorkoutHistory() {
       setWorkouts(data.workouts || []);
     } catch (err) {
       console.error("Workout history error:", err);
+
       setError(
         err.message || "Unable to load workout history."
       );
@@ -60,29 +61,80 @@ export default function WorkoutHistory() {
     fetchWorkoutHistory();
   }, []);
 
+  /*
+   * GymNance timezone
+   * India Standard Time = Asia/Kolkata
+   */
+  const GYM_TIMEZONE = "Asia/Kolkata";
+
+  /*
+   * Format workout date in IST.
+   *
+   * Example:
+   * 17 Sep 2026
+   */
   const formatDate = (dateString) => {
     if (!dateString) return "Unknown date";
 
-    return new Date(dateString).toLocaleDateString(
-      "en-IN",
-      {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }
-    );
+    const date = new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Unknown date";
+    }
+
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: GYM_TIMEZONE,
+    });
   };
 
+  /*
+   * Format workout time in IST.
+   *
+   * Example:
+   * 1:32 AM
+   */
   const formatTime = (dateString) => {
     if (!dateString) return "";
 
-    return new Date(dateString).toLocaleTimeString(
-      "en-IN",
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-      }
-    );
+    const date = new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return date.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: GYM_TIMEZONE,
+    });
+  };
+
+  /*
+   * Full date + time.
+   * Useful for debugging and future UI improvements.
+   */
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "Unknown";
+
+    const date = new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Unknown";
+    }
+
+    return date.toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: GYM_TIMEZONE,
+    });
   };
 
   const totalWorkouts = workouts.length;
@@ -144,6 +196,7 @@ export default function WorkoutHistory() {
               size={15}
               className={loading ? "animate-spin" : ""}
             />
+
             Refresh
           </button>
 
@@ -153,6 +206,7 @@ export default function WorkoutHistory() {
         <section className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
 
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
+
             <div className="flex items-center justify-between">
               <Activity
                 size={18}
@@ -171,9 +225,11 @@ export default function WorkoutHistory() {
             <p className="mt-1 text-xs text-[#8F8998]">
               Completed workouts
             </p>
+
           </div>
 
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
+
             <div className="flex items-center justify-between">
               <Dumbbell
                 size={18}
@@ -192,9 +248,11 @@ export default function WorkoutHistory() {
             <p className="mt-1 text-xs text-[#8F8998]">
               Total sets logged
             </p>
+
           </div>
 
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
+
             <div className="flex items-center justify-between">
               <Flame
                 size={18}
@@ -213,9 +271,11 @@ export default function WorkoutHistory() {
             <p className="mt-1 text-xs text-[#8F8998]">
               Total repetitions
             </p>
+
           </div>
 
           <div className="rounded-2xl border border-[#D4AF37]/15 bg-[#D4AF37]/[0.045] p-5">
+
             <div className="flex items-center justify-between">
               <Trophy
                 size={18}
@@ -234,6 +294,7 @@ export default function WorkoutHistory() {
             <p className="mt-1 text-xs text-[#8F8998]">
               Total training volume
             </p>
+
           </div>
 
         </section>
@@ -289,10 +350,12 @@ export default function WorkoutHistory() {
             <section className="mt-8 rounded-3xl border border-white/[0.07] bg-white/[0.025] p-12 text-center">
 
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#D4AF37]/20 bg-[#D4AF37]/10">
+
                 <Dumbbell
                   size={26}
                   className="text-[#D4AF37]"
                 />
+
               </div>
 
               <h2 className="mt-5 text-xl font-black">
@@ -314,6 +377,7 @@ export default function WorkoutHistory() {
             <section className="mt-8">
 
               <div className="mb-4">
+
                 <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#5E5964]">
                   Recent Sessions
                 </p>
@@ -321,6 +385,7 @@ export default function WorkoutHistory() {
                 <h2 className="mt-1 text-xl font-black">
                   Training Log
                 </h2>
+
               </div>
 
               <div className="space-y-3">
@@ -337,13 +402,16 @@ export default function WorkoutHistory() {
                       <div className="flex items-start gap-4">
 
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10">
+
                           <Dumbbell
                             size={21}
                             className="text-[#D4AF37]"
                           />
+
                         </div>
 
                         <div>
+
                           <h3 className="text-lg font-black">
                             {workout.workout_name}
                           </h3>
@@ -352,6 +420,7 @@ export default function WorkoutHistory() {
 
                             <span className="inline-flex items-center gap-1.5">
                               <CalendarDays size={13} />
+
                               {formatDate(
                                 workout.completed_at
                               )}
@@ -364,6 +433,7 @@ export default function WorkoutHistory() {
                             </span>
 
                           </div>
+
                         </div>
 
                       </div>
@@ -372,6 +442,7 @@ export default function WorkoutHistory() {
                       <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
 
                         <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-center">
+
                           <p className="text-sm font-black text-[#D4AF37]">
                             {workout.total_sets}
                           </p>
@@ -379,9 +450,11 @@ export default function WorkoutHistory() {
                           <p className="mt-1 text-[9px] uppercase tracking-wider text-[#5E5964]">
                             Sets
                           </p>
+
                         </div>
 
                         <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-center">
+
                           <p className="text-sm font-black text-[#D4AF37]">
                             {workout.total_reps}
                           </p>
@@ -389,9 +462,11 @@ export default function WorkoutHistory() {
                           <p className="mt-1 text-[9px] uppercase tracking-wider text-[#5E5964]">
                             Reps
                           </p>
+
                         </div>
 
                         <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-center">
+
                           <p className="text-sm font-black text-[#D4AF37]">
                             {Number(
                               workout.total_volume || 0
@@ -401,6 +476,7 @@ export default function WorkoutHistory() {
                           <p className="mt-1 text-[9px] uppercase tracking-wider text-[#5E5964]">
                             Volume
                           </p>
+
                         </div>
 
                       </div>
@@ -411,15 +487,19 @@ export default function WorkoutHistory() {
                     <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-4">
 
                       <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-wider text-[#5E5964]">
+
                         <span className="h-1.5 w-1.5 rounded-full bg-[#D4AF37]" />
+
                         Session completed
+
                       </div>
 
                       <div className="inline-flex items-center gap-1 text-xs font-semibold text-[#8F8998] transition group-hover:text-[#D4AF37]">
+
                         Logged
-                        <ChevronRight
-                          size={14}
-                        />
+
+                        <ChevronRight size={14} />
+
                       </div>
 
                     </div>

@@ -259,22 +259,14 @@ app.post("/api/workouts/sessions", authenticateToken, async (req, res) => {
     // Create workout session
     const sessionResult = await client.query(
       `INSERT INTO workout_sessions
-       (
-         user_id,
-         workout_id,
-         workout_name,
-         completed_at,
-         total_sets,
-         total_reps,
-         total_volume
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id`,
+   (user_id, workout_id, workout_name, completed_at, total_sets, total_reps, total_volume)
+   VALUES ($1, $2, $3, $4, $5, $6, $7)
+   RETURNING id`,
       [
         req.user.id,
         workoutId,
         workoutName,
-        completedAt || new Date(),
+        completedAt || new Date(),toISOString(),
         totalSets || 0,
         totalReps || 0,
         totalVolume || 0,
@@ -358,6 +350,72 @@ app.get("/api/workouts/history", authenticateToken, async (req, res) => {
 
     res.status(500).json({
       message: "Failed to fetch workout history",
+    });
+  }
+});
+
+// ==============================
+// GET USER PROGRESS
+// ==============================
+
+app.get("/api/workouts/progress", authenticateToken, async (req, res) => {
+  try {
+    const overallResult = await pool.query(
+      `
+      SELECT
+        COUNT(*)::INTEGER AS total_workouts,
+        COALESCE(SUM(total_sets), 0)::INTEGER AS total_sets,
+        COALESCE(SUM(total_reps), 0)::INTEGER AS total_reps,
+        COALESCE(SUM(total_volume), 0)::NUMERIC AS total_volume
+      FROM workout_sessions
+      WHERE user_id = $1
+      `,
+      [req.user.id]
+    );
+
+    const weeklyResult = await pool.query(
+      `
+      SELECT
+        DATE(completed_at AT TIME ZONE 'Asia/Kolkata') AS workout_date,
+        COUNT(*)::INTEGER AS workout_count,
+        COALESCE(SUM(total_volume), 0)::NUMERIC AS volume
+      FROM workout_sessions
+      WHERE user_id = $1
+        AND completed_at >=
+          (
+            CURRENT_DATE - INTERVAL '6 days'
+          ) AT TIME ZONE 'Asia/Kolkata'
+      GROUP BY DATE(completed_at AT TIME ZONE 'Asia/Kolkata')
+      ORDER BY workout_date ASC
+      `,
+      [req.user.id]
+    );
+
+    const workoutBreakdownResult = await pool.query(
+      `
+      SELECT
+        workout_name,
+        COUNT(*)::INTEGER AS times_completed,
+        COALESCE(SUM(total_volume), 0)::NUMERIC AS total_volume,
+        COALESCE(SUM(total_reps), 0)::INTEGER AS total_reps
+      FROM workout_sessions
+      WHERE user_id = $1
+      GROUP BY workout_name
+      ORDER BY times_completed DESC, workout_name ASC
+      `,
+      [req.user.id]
+    );
+
+    res.json({
+      overall: overallResult.rows[0],
+      weekly: weeklyResult.rows,
+      workoutBreakdown: workoutBreakdownResult.rows,
+    });
+  } catch (error) {
+    console.error("Progress error:", error);
+
+    res.status(500).json({
+      message: "Failed to load progress",
     });
   }
 });
