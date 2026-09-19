@@ -118,43 +118,45 @@ export default function WorkoutSession() {
       )
   ).length;
 
-  const totalSets = Object.values(exerciseSets).reduce(
-    (total, sets) => total + sets.length,
-    0
-  );
-
   const totalCompletedSets = Object.values(
-    exerciseSets
-  ).reduce(
-    (total, sets) =>
-      total +
-      sets.filter((set) => set.completed).length,
-    0
-  );
+  exerciseSets
+).reduce(
+  (total, sets) =>
+    total +
+    sets.filter((set) => set.completed).length,
+  0
+);
 
-  const totalReps = Object.values(exerciseSets).reduce(
-    (total, sets) =>
-      total +
-      sets.reduce(
-        (setTotal, set) =>
-          setTotal +
-          (Number(set.reps) || 0),
-        0
-      ),
-    0
-  );
+const totalSets = totalCompletedSets;
 
-  const totalVolume = Object.values(exerciseSets).reduce(
-    (total, sets) =>
-      total +
-      sets.reduce((setTotal, set) => {
-        const weight = Number(set.weight) || 0;
-        const reps = Number(set.reps) || 0;
+const totalReps = Object.values(exerciseSets).reduce(
+  (total, sets) =>
+    total +
+    sets.reduce((setTotal, set) => {
+      if (!set.completed) {
+        return setTotal;
+      }
 
-        return setTotal + weight * reps;
-      }, 0),
-    0
-  );
+      return setTotal + (Number(set.reps) || 0);
+    }, 0),
+  0
+);
+
+const totalVolume = Object.values(exerciseSets).reduce(
+  (total, sets) =>
+    total +
+    sets.reduce((setTotal, set) => {
+      if (!set.completed) {
+        return setTotal;
+      }
+
+      const weight = Number(set.weight) || 0;
+      const reps = Number(set.reps) || 0;
+
+      return setTotal + weight * reps;
+    }, 0),
+  0
+);
 
   const progress =
     workoutExercises.length > 0

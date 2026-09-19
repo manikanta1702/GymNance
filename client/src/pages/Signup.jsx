@@ -9,79 +9,138 @@ import {
 } from "lucide-react";
 
 export default function Signup() {
+  const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [fullName, setFullName] = useState("")
+
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
   const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate();
-
   const handleSignup = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  setError("");
-  setSuccess("");
+    setError("");
+    setSuccess("");
 
-  if (password !== confirmPassword) {
-    setError("Passwords do not match.");
-    return;
-  }
+    // Get values directly from the form
+    const formData = new FormData(e.currentTarget);
 
-  if (password.length < 6) {
-    setError("Password must be at least 6 characters.");
-    return;
-  }
+    const fullNameValue = String(
+      formData.get("fullName") || ""
+    ).trim();
 
-  try {
-    setLoading(true);
+    const emailValue = String(
+      formData.get("email") || ""
+    ).trim();
 
-    const response = await fetch(
-      "http://localhost:5000/api/auth/signup",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          full_name: fullName,
-          email: email,
-          password: password,
-        }),
-      }
+    const passwordValue = String(
+      formData.get("password") || ""
     );
 
-    const data = await response.json();
+    const confirmPasswordValue = String(
+      formData.get("confirmPassword") || ""
+    );
 
-    if (!response.ok) {
-      setError(data.message || "Signup failed.");
+    // Update React state
+    setFullName(fullNameValue);
+    setEmail(emailValue);
+    setPassword(passwordValue);
+    setConfirmPassword(confirmPasswordValue);
+
+    // =========================
+    // VALIDATION
+    // =========================
+
+    if (
+      !fullNameValue ||
+      !emailValue ||
+      !passwordValue ||
+      !confirmPasswordValue
+    ) {
+      setError("All fields are required.");
       return;
     }
 
-    setSuccess("Account created successfully!");
+    if (passwordValue !== confirmPasswordValue) {
+      setError("Passwords do not match.");
+      return;
+    }
 
-    setTimeout(() => {
-      navigate("/login");
-    }, 1500);
-  } catch (error) {
-    setError("Unable to connect to the server.");
-  } finally {
-    setLoading(false);
-  }
-};
+    if (passwordValue.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // =========================
+      // SEND DATA TO BACKEND
+      // =========================
+
+      const response = await fetch(
+        "http://localhost:5000/api/auth/signup",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            // IMPORTANT:
+            // Backend expects fullName
+            fullName: fullNameValue,
+            email: emailValue,
+            password: passwordValue,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Signup failed.");
+        return;
+      }
+
+      // =========================
+      // SUCCESS
+      // =========================
+
+      setSuccess("Account created successfully!");
+
+      // Clear form
+      setFullName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+
+      // Go to login
+      setTimeout(() => {
+        navigate("/login");
+      }, 1200);
+    } catch (error) {
+      console.error("Signup error:", error);
+      setError(
+        "Unable to connect to the server. Make sure the backend is running."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#070609] text-[#F7F3EA] relative overflow-hidden">
 
-      {/* =====================================================
+      {/* =========================
           BACKGROUND GLOWS
-         ===================================================== */}
+      ========================== */}
 
       <div
         className="
@@ -111,10 +170,9 @@ export default function Signup() {
         "
       />
 
-
-      {/* =====================================================
+      {/* =========================
           SUBTLE PARTICLES
-         ===================================================== */}
+      ========================== */}
 
       <div className="absolute inset-0 pointer-events-none">
 
@@ -132,12 +190,11 @@ export default function Signup() {
 
       </div>
 
-
-      {/* =====================================================
+      {/* =========================
           LOGO
-         ===================================================== */}
+      ========================== */}
 
-      <header className="absolute top-0 left-0 right-0">
+      <header className="absolute top-0 left-0 right-0 z-20">
 
         <div className="max-w-7xl mx-auto px-6 py-6">
 
@@ -158,10 +215,9 @@ export default function Signup() {
 
       </header>
 
-
-      {/* =====================================================
+      {/* =========================
           SIGNUP CONTENT
-         ===================================================== */}
+      ========================== */}
 
       <section
         className="
@@ -178,10 +234,9 @@ export default function Signup() {
 
         <div className="w-full max-w-md">
 
-
-          {/* =================================================
+          {/* =========================
               ICON
-             ================================================= */}
+          ========================== */}
 
           <div className="flex justify-center mb-7">
 
@@ -209,10 +264,9 @@ export default function Signup() {
 
           </div>
 
-
-          {/* =================================================
+          {/* =========================
               HEADING
-             ================================================= */}
+          ========================== */}
 
           <div className="text-center mb-8">
 
@@ -257,10 +311,9 @@ export default function Signup() {
 
           </div>
 
-
-          {/* =================================================
+          {/* =========================
               SIGNUP CARD
-             ================================================= */}
+          ========================== */}
 
           <div
             className="
@@ -275,28 +328,36 @@ export default function Signup() {
             "
           >
 
-            <form className="space-y-5" onSubmit={handleSignup}>
-                {error && (
-                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                     {error}
-                    </div>
-                )}
+            <form
+              className="space-y-5"
+              onSubmit={handleSignup}
+              autoComplete="on"
+            >
 
-                {success && (
-                    <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-400">
-                    {success}
-                    </div>
-                )}
+              {/* ERROR */}
 
+              {error && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {error}
+                </div>
+              )}
 
-              {/* =================================================
+              {/* SUCCESS */}
+
+              {success && (
+                <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+                  {success}
+                </div>
+              )}
+
+              {/* =========================
                   FULL NAME
-                 ================================================= */}
+              ========================== */}
 
               <div>
 
                 <label
-                  htmlFor="name"
+                  htmlFor="fullName"
                   className="
                     block
                     text-sm
@@ -309,8 +370,10 @@ export default function Signup() {
                 </label>
 
                 <input
-                  id="name"
+                  id="fullName"
+                  name="fullName"
                   type="text"
+                  autoComplete="name"
                   placeholder="Enter your full name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
@@ -335,10 +398,9 @@ export default function Signup() {
 
               </div>
 
-
-              {/* =================================================
+              {/* =========================
                   EMAIL
-                 ================================================= */}
+              ========================== */}
 
               <div>
 
@@ -357,7 +419,9 @@ export default function Signup() {
 
                 <input
                   id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -382,10 +446,9 @@ export default function Signup() {
 
               </div>
 
-
-              {/* =================================================
+              {/* =========================
                   PASSWORD
-                 ================================================= */}
+              ========================== */}
 
               <div>
 
@@ -406,7 +469,9 @@ export default function Signup() {
 
                   <input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Create a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -450,23 +515,20 @@ export default function Signup() {
                         : "Show password"
                     }
                   >
-
                     {showPassword ? (
                       <EyeOff size={19} />
                     ) : (
                       <Eye size={19} />
                     )}
-
                   </button>
 
                 </div>
 
               </div>
 
-
-              {/* =================================================
+              {/* =========================
                   CONFIRM PASSWORD
-                 ================================================= */}
+              ========================== */}
 
               <div>
 
@@ -487,14 +549,18 @@ export default function Signup() {
 
                   <input
                     id="confirmPassword"
+                    name="confirmPassword"
                     type={
                       showConfirmPassword
                         ? "text"
                         : "password"
                     }
+                    autoComplete="new-password"
                     placeholder="Confirm your password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) =>
+                      setConfirmPassword(e.target.value)
+                    }
                     className="
                       w-full
                       h-12
@@ -537,23 +603,20 @@ export default function Signup() {
                         : "Show password"
                     }
                   >
-
                     {showConfirmPassword ? (
                       <EyeOff size={19} />
                     ) : (
                       <Eye size={19} />
                     )}
-
                   </button>
 
                 </div>
 
               </div>
 
-
-              {/* =================================================
+              {/* =========================
                   TERMS
-                 ================================================= */}
+              ========================== */}
 
               <label
                 className="
@@ -580,12 +643,10 @@ export default function Signup() {
                     shrink-0
                   "
                 >
-
                   <Check
                     size={12}
                     className="text-[#D4AF37]"
                   />
-
                 </span>
 
                 <span className="text-xs leading-relaxed text-[#8F8998]">
@@ -612,21 +673,19 @@ export default function Signup() {
                     "
                   >
                     Privacy Policy
-                  </a>
-
-                  .
+                  </a>.
 
                 </span>
 
               </label>
 
-
-              {/* =================================================
+              {/* =========================
                   CREATE ACCOUNT BUTTON
-                 ================================================= */}
+              ========================== */}
 
               <button
                 type="submit"
+                disabled={loading}
                 className="
                   group
                   w-full
@@ -644,10 +703,14 @@ export default function Signup() {
                   hover:bg-[#F3D58A]
                   hover:shadow-[0_10px_40px_rgba(212,175,55,0.18)]
                   active:scale-[0.98]
+                  disabled:opacity-60
+                  disabled:cursor-not-allowed
                 "
               >
 
-                {loading ? "Creating Account..." : "Create Account"}
+                {loading
+                  ? "Creating Account..."
+                  : "Create Account"}
 
                 <ArrowRight
                   size={18}
@@ -662,10 +725,9 @@ export default function Signup() {
 
             </form>
 
-
-            {/* =================================================
+            {/* =========================
                 DIVIDER
-               ================================================= */}
+            ========================== */}
 
             <div className="flex items-center gap-4 my-7">
 
@@ -679,10 +741,9 @@ export default function Signup() {
 
             </div>
 
-
-            {/* =================================================
+            {/* =========================
                 LOGIN LINK
-               ================================================= */}
+            ========================== */}
 
             <p className="text-center text-sm text-[#8F8998]">
 
@@ -704,10 +765,9 @@ export default function Signup() {
 
           </div>
 
-
-          {/* =================================================
+          {/* =========================
               FOOTER
-             ================================================= */}
+          ========================== */}
 
           <p
             className="

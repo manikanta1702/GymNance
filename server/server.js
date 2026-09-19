@@ -372,6 +372,137 @@ app.get("/api/workouts/history", authenticateToken, async (req, res) => {
   }
 });
 
+app.get("/api/workouts/dashboard", authenticateToken, async (req, res) => {
+  try {
+    // 1. Overall workout statistics
+    const overallResult = await pool.query(
+      `
+      SELECT
+        COUNT(*)::INTEGER AS total_workouts,
+        COALESCE(SUM(total_sets), 0)::INTEGER AS total_sets,
+        COALESCE(SUM(total_reps), 0)::INTEGER AS total_reps,
+        COALESCE(SUM(total_volume), 0)::NUMERIC AS total_volume
+      FROM workout_sessions
+      WHERE user_id = $1
+      `,
+      [req.user.id]
+    );
+
+    // 2. Workouts completed this month
+    const monthlyResult = await pool.query(
+      `
+      SELECT COUNT(*)::INTEGER AS monthly_workouts
+      FROM workout_sessions
+      WHERE user_id = $1
+        AND completed_at IS NOT NULL
+        AND DATE(completed_at AT TIME ZONE 'Asia/Kolkata')
+            >= DATE_TRUNC(
+              'month',
+              CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata'
+            )::DATE
+        AND DATE(completed_at AT TIME ZONE 'Asia/Kolkata')
+            < (
+              DATE_TRUNC(
+                'month',
+                CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata'
+              ) + INTERVAL '1 month'
+            )::DATE
+      `,
+      [req.user.id]
+    );
+
+    // 3. Current workout streak
+    const activityResult = await pool.query(
+      `
+      SELECT DISTINCT
+        DATE(completed_at AT TIME ZONE 'Asia/Kolkata') AS workout_date
+      FROM workout_sessions
+      WHERE user_id = $1
+        AND completed_at IS NOT NULL
+      ORDER BY workout_date DESC
+      `,
+      [req.user.id]
+    );
+
+    const workoutDates = activityResult.rows.map(
+      (row) => row.workout_date
+    );
+
+    let currentStreak = 0;
+
+    if (workoutDates.length > 0) {
+      const todayResult = await pool.query(
+        `
+        SELECT
+          CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata' AS india_now,
+          CURRENT_DATE AS server_date
+        `
+      );
+
+      const indiaToday = new Date(
+        todayResult.rows[0].india_now
+      );
+
+      indiaToday.setHours(0, 0, 0, 0);
+
+      const latestWorkoutDate = new Date(
+        workoutDates[0]
+      );
+
+      latestWorkoutDate.setHours(0, 0, 0, 0);
+
+      const daysSinceLatest = Math.floor(
+        (indiaToday - latestWorkoutDate) /
+          (1000 * 60 * 60 * 24)
+      );
+
+      // A streak can continue if the latest workout
+      // was today or yesterday.
+      if (daysSinceLatest <= 1) {
+        currentStreak = 1;
+
+        for (let i = 1; i < workoutDates.length; i += 1) {
+          const previousDate = new Date(
+            workoutDates[i - 1]
+          );
+
+          const currentDate = new Date(
+            workoutDates[i]
+          );
+
+          previousDate.setHours(0, 0, 0, 0);
+          currentDate.setHours(0, 0, 0, 0);
+
+          const difference = Math.floor(
+            (previousDate - currentDate) /
+              (1000 * 60 * 60 * 24)
+          );
+
+          if (difference === 1) {
+            currentStreak += 1;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. Return dashboard data
+    res.json({
+      overall: overallResult.rows[0],
+      monthlyWorkouts:
+        monthlyResult.rows[0].monthly_workouts,
+      currentStreak,
+    });
+  } catch (error) {
+    console.error("Dashboard error:", error);
+
+    res.status(500).json({
+      message: "Failed to load dashboard data",
+    });
+  }
+});
+
 // ==============================
 // GET USER PROGRESS
 // ==============================
@@ -392,22 +523,24 @@ app.get("/api/workouts/progress", authenticateToken, async (req, res) => {
     );
 
     const weeklyResult = await pool.query(
-      `
-      SELECT
-        DATE(completed_at AT TIME ZONE 'Asia/Kolkata') AS workout_date,
-        COUNT(*)::INTEGER AS workout_count,
-        COALESCE(SUM(total_volume), 0)::NUMERIC AS volume
-      FROM workout_sessions
-      WHERE user_id = $1
-        AND completed_at >=
-          (
-            CURRENT_DATE - INTERVAL '6 days'
-          ) AT TIME ZONE 'Asia/Kolkata'
-      GROUP BY DATE(completed_at AT TIME ZONE 'Asia/Kolkata')
-      ORDER BY workout_date ASC
-      `,
-      [req.user.id]
-    );
+  `
+  SELECT
+    (completed_at AT TIME ZONE 'Asia/Kolkata')::DATE AS workout_date,
+    COUNT(*)::INTEGER AS workout_count,
+    COALESCE(SUM(total_volume), 0)::NUMERIC AS volume
+  FROM workout_sessions
+  WHERE user_id = $1
+    AND (completed_at AT TIME ZONE 'Asia/Kolkata')::DATE
+        BETWEEN
+          (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::DATE
+          - 6
+        AND
+          (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::DATE
+  GROUP BY (completed_at AT TIME ZONE 'Asia/Kolkata')::DATE
+  ORDER BY workout_date ASC
+  `,
+  [req.user.id]
+);  
 
     const workoutBreakdownResult = await pool.query(
       `
