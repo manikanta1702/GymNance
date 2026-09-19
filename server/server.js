@@ -1341,6 +1341,322 @@ ${gymContext}
     }
   }
 );
+
+// ===============================
+// NUTRITION API
+// ===============================
+
+// Get today's nutrition data
+app.get("/api/nutrition/today", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const profileResult = await pool.query(
+      `
+      SELECT
+        calorie_goal,
+        protein_goal,
+        carbs_goal,
+        fats_goal,
+        water_goal
+      FROM nutrition_profiles
+      WHERE user_id = $1
+      `,
+      [userId]
+    );
+
+    // Create default nutrition profile if one doesn't exist
+    if (profileResult.rows.length === 0) {
+      const newProfile = await pool.query(
+        `
+        INSERT INTO nutrition_profiles (
+          user_id,
+          calorie_goal,
+          protein_goal,
+          carbs_goal,
+          fats_goal,
+          water_goal
+        )
+        VALUES ($1, 2500, 150, 280, 70, 8)
+        RETURNING
+          calorie_goal,
+          protein_goal,
+          carbs_goal,
+          fats_goal,
+          water_goal
+        `,
+        [userId]
+      );
+
+      profileResult.rows.push(newProfile.rows[0]);
+    }
+
+    const mealsResult = await pool.query(
+      `
+      SELECT
+        id,
+        meal_type,
+        food_name,
+        calories,
+        protein,
+        carbs,
+        fats,
+        quantity,
+        consumed_at
+      FROM meal_entries
+      WHERE user_id = $1
+        AND (consumed_at AT TIME ZONE 'Asia/Kolkata')::DATE =
+            (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::DATE
+      ORDER BY consumed_at ASC
+      `,
+      [userId]
+    );
+
+    const waterResult = await pool.query(
+      `
+      SELECT glasses
+      FROM water_intake
+      WHERE user_id = $1
+        AND intake_date =
+            (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::DATE
+      `,
+      [userId]
+    );
+
+    const meals = mealsResult.rows;
+
+    const totals = meals.reduce(
+      (accumulator, meal) => {
+        accumulator.calories += Number(meal.calories || 0);
+        accumulator.protein += Number(meal.protein || 0);
+        accumulator.carbs += Number(meal.carbs || 0);
+        accumulator.fats += Number(meal.fats || 0);
+
+        return accumulator;
+      },
+      {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fats: 0,
+      }
+    );
+
+    res.json({
+      goals: profileResult.rows[0],
+      totals,
+      meals,
+      water: waterResult.rows[0]?.glasses || 0,
+    });
+  } catch (error) {
+    console.error("Nutrition today error:", error);
+
+    res.status(500).json({
+      message: "Failed to load nutrition data",
+    });
+  }
+});
+
+
+// Update nutrition goals
+app.put("/api/nutrition/profile", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const {
+      calorieGoal,
+      proteinGoal,
+      carbsGoal,
+      fatsGoal,
+      waterGoal,
+    } = req.body;
+
+    const result = await pool.query(
+      `
+      INSERT INTO nutrition_profiles (
+        user_id,
+        calorie_goal,
+        protein_goal,
+        carbs_goal,
+        fats_goal,
+        water_goal
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (user_id)
+      DO UPDATE SET
+        calorie_goal = EXCLUDED.calorie_goal,
+        protein_goal = EXCLUDED.protein_goal,
+        carbs_goal = EXCLUDED.carbs_goal,
+        fats_goal = EXCLUDED.fats_goal,
+        water_goal = EXCLUDED.water_goal,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING
+        calorie_goal,
+        protein_goal,
+        carbs_goal,
+        fats_goal,
+        water_goal
+      `,
+      [
+        userId,
+        calorieGoal,
+        proteinGoal,
+        carbsGoal,
+        fatsGoal,
+        waterGoal,
+      ]
+    );
+
+    res.json({
+      message: "Nutrition goals updated",
+      goals: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Nutrition profile error:", error);
+
+    res.status(500).json({
+      message: "Failed to update nutrition goals",
+    });
+  }
+});
+
+
+// Add a meal
+app.post("/api/nutrition/meals", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const {
+      mealType,
+      foodName,
+      calories,
+      protein,
+      carbs,
+      fats,
+      quantity,
+    } = req.body;
+
+    if (!mealType || !foodName) {
+      return res.status(400).json({
+        message: "Meal type and food name are required",
+      });
+    }
+
+    const result = await pool.query(
+      `
+      INSERT INTO meal_entries (
+        user_id,
+        meal_type,
+        food_name,
+        calories,
+        protein,
+        carbs,
+        fats,
+        quantity
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+      `,
+      [
+        userId,
+        mealType,
+        foodName,
+        calories || 0,
+        protein || 0,
+        carbs || 0,
+        fats || 0,
+        quantity || 1,
+      ]
+    );
+
+    res.status(201).json({
+      message: "Meal added successfully",
+      meal: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Add meal error:", error);
+
+    res.status(500).json({
+      message: "Failed to add meal",
+    });
+  }
+});
+
+
+// Delete a meal
+app.delete("/api/nutrition/meals/:id", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const mealId = req.params.id;
+
+    const result = await pool.query(
+      `
+      DELETE FROM meal_entries
+      WHERE id = $1
+        AND user_id = $2
+      RETURNING id
+      `,
+      [mealId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Meal not found",
+      });
+    }
+
+    res.json({
+      message: "Meal deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete meal error:", error);
+
+    res.status(500).json({
+      message: "Failed to delete meal",
+    });
+  }
+});
+
+
+// Add one glass of water
+app.post("/api/nutrition/water", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `
+      INSERT INTO water_intake (
+        user_id,
+        intake_date,
+        glasses
+      )
+      VALUES (
+        $1,
+        (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::DATE,
+        1
+      )
+      ON CONFLICT (user_id, intake_date)
+      DO UPDATE SET
+        glasses = water_intake.glasses + 1,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING glasses
+      `,
+      [userId]
+    );
+
+    res.json({
+      message: "Water intake updated",
+      glasses: result.rows[0].glasses,
+    });
+  } catch (error) {
+    console.error("Water intake error:", error);
+
+    res.status(500).json({
+      message: "Failed to update water intake",
+    });
+  }
+});
+
 // ==============================
 // SERVER
 // ==============================

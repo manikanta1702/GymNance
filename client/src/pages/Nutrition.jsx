@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Apple,
   Flame,
@@ -8,83 +8,205 @@ import {
   Plus,
   Utensils,
   ChevronRight,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 
-const meals = [
+const API_URL = "http://localhost:5000";
+
+const mealTypes = [
   {
-    id: 1,
     name: "Breakfast",
     description: "Start your day strong",
-    calories: 0,
-    protein: 0,
     icon: Apple,
   },
   {
-    id: 2,
     name: "Lunch",
     description: "Fuel your training",
-    calories: 0,
-    protein: 0,
     icon: Utensils,
   },
   {
-    id: 3,
     name: "Dinner",
     description: "Recover and rebuild",
-    calories: 0,
-    protein: 0,
     icon: Utensils,
   },
   {
-    id: 4,
     name: "Snacks",
     description: "Keep your energy up",
-    calories: 0,
-    protein: 0,
     icon: Apple,
   },
 ];
 
 function Nutrition() {
-  const [water, setWater] = useState(0);
+  const [nutrition, setNutrition] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const calorieGoal = 2500;
-  const proteinGoal = 150;
-  const carbsGoal = 280;
-  const fatsGoal = 70;
+  const fetchNutrition = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-  const caloriesConsumed = 0;
-  const proteinConsumed = 0;
-  const carbsConsumed = 0;
-  const fatsConsumed = 0;
+      const token = localStorage.getItem("token");
 
-  const waterGoal = 8;
+      if (!token) {
+        throw new Error("You are not logged in.");
+      }
+
+      const response = await fetch(`${API_URL}/api/nutrition/today`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to load nutrition data."
+        );
+      }
+
+      setNutrition(data);
+    } catch (err) {
+      console.error("Nutrition fetch error:", err);
+      setError(err.message || "Failed to load nutrition data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNutrition();
+  }, []);
+
+  const goals = nutrition?.goals || {
+    calorie_goal: 2500,
+    protein_goal: 150,
+    carbs_goal: 280,
+    fats_goal: 70,
+    water_goal: 8,
+  };
+
+  const totals = nutrition?.totals || {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fats: 0,
+  };
+
+  const meals = nutrition?.meals || [];
+  const water = Number(nutrition?.water || 0);
+
+  const calorieGoal = Number(goals.calorie_goal || 0);
+  const proteinGoal = Number(goals.protein_goal || 0);
+  const carbsGoal = Number(goals.carbs_goal || 0);
+  const fatsGoal = Number(goals.fats_goal || 0);
+  const waterGoal = Number(goals.water_goal || 8);
+
+  const caloriesConsumed = Number(totals.calories || 0);
+  const proteinConsumed = Number(totals.protein || 0);
+  const carbsConsumed = Number(totals.carbs || 0);
+  const fatsConsumed = Number(totals.fats || 0);
 
   const caloriePercentage = Math.min(
-    (caloriesConsumed / calorieGoal) * 100,
+    (caloriesConsumed / calorieGoal) * 100 || 0,
     100
   );
 
   const proteinPercentage = Math.min(
-    (proteinConsumed / proteinGoal) * 100,
+    (proteinConsumed / proteinGoal) * 100 || 0,
     100
   );
 
   const carbsPercentage = Math.min(
-    (carbsConsumed / carbsGoal) * 100,
+    (carbsConsumed / carbsGoal) * 100 || 0,
     100
   );
 
   const fatsPercentage = Math.min(
-    (fatsConsumed / fatsGoal) * 100,
+    (fatsConsumed / fatsGoal) * 100 || 0,
     100
   );
 
-  const addWater = () => {
-    if (water < waterGoal) {
-      setWater((current) => current + 1);
+  const mealSummary = useMemo(() => {
+    return mealTypes.map((mealType) => {
+      const entries = meals.filter(
+        (meal) =>
+          meal.meal_type?.toLowerCase() ===
+          mealType.name.toLowerCase()
+      );
+
+      const summary = entries.reduce(
+        (accumulator, meal) => {
+          accumulator.calories += Number(meal.calories || 0);
+          accumulator.protein += Number(meal.protein || 0);
+          accumulator.carbs += Number(meal.carbs || 0);
+          accumulator.fats += Number(meal.fats || 0);
+
+          return accumulator;
+        },
+        {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fats: 0,
+        }
+      );
+
+      return {
+        ...mealType,
+        ...summary,
+        entries,
+      };
+    });
+  }, [meals]);
+
+  const addWater = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("You are not logged in.");
+      }
+
+      const response = await fetch(`${API_URL}/api/nutrition/water`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to update water intake."
+        );
+      }
+
+      setNutrition((current) => ({
+        ...current,
+        water: Number(data.glasses || 0),
+      }));
+    } catch (err) {
+      console.error("Water update error:", err);
+      setError(err.message || "Failed to update water intake.");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#08080b] text-[#f7f3ea]">
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="flex items-center gap-3 text-sm text-zinc-500">
+            <Loader2 className="h-5 w-5 animate-spin text-[#d4af37]" />
+            Loading your nutrition...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#08080b] text-[#f7f3ea]">
@@ -108,12 +230,23 @@ function Nutrition() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-zinc-500">
-              <span className="h-2 w-2 rounded-full bg-[#d4af37]" />
-              Today's nutrition
-            </div>
+            <button
+              type="button"
+              onClick={fetchNutrition}
+              className="flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-4 py-2 text-xs text-zinc-500 transition hover:border-[#d4af37]/30 hover:text-[#d4af37]"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </button>
           </div>
         </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-400/20 bg-red-400/5 px-5 py-4 text-sm text-red-300">
+            {error}
+          </div>
+        )}
 
         {/* Daily Overview */}
         <section className="mb-8 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#12100c] via-[#0c0c10] to-[#100c18] p-6 shadow-2xl sm:p-8">
@@ -134,9 +267,9 @@ function Nutrition() {
             </div>
           </div>
 
-          {/* Main calorie card */}
           <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
 
+            {/* Calories */}
             <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-orange-400/20 bg-orange-400/10">
@@ -149,9 +282,9 @@ function Nutrition() {
                   </p>
 
                   <p className="text-3xl font-black">
-                    {caloriesConsumed.toLocaleString()}
+                    {Math.round(caloriesConsumed).toLocaleString()}
                     <span className="ml-2 text-sm font-normal text-zinc-600">
-                      / {calorieGoal.toLocaleString()} kcal
+                      / {Math.round(calorieGoal).toLocaleString()} kcal
                     </span>
                   </p>
                 </div>
@@ -159,19 +292,22 @@ function Nutrition() {
 
               <div className="mt-7 h-2 overflow-hidden rounded-full bg-white/5">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#d4af37] to-[#f3d58a]"
+                  className="h-full rounded-full bg-gradient-to-r from-[#d4af37] to-[#f3d58a] transition-all duration-500"
                   style={{ width: `${caloriePercentage}%` }}
                 />
               </div>
 
               <p className="mt-3 text-xs text-zinc-600">
-                {calorieGoal - caloriesConsumed} kcal remaining
+                {Math.max(
+                  Math.round(calorieGoal - caloriesConsumed),
+                  0
+                ).toLocaleString()}{" "}
+                kcal remaining
               </p>
             </div>
 
-            {/* Macro cards */}
+            {/* Macros */}
             <div className="grid grid-cols-3 gap-3">
-
               <MacroCard
                 icon={Beef}
                 label="Protein"
@@ -198,7 +334,6 @@ function Nutrition() {
                 unit="g"
                 percentage={fatsPercentage}
               />
-
             </div>
           </div>
         </section>
@@ -221,12 +356,12 @@ function Nutrition() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {meals.map((meal) => {
+              {mealSummary.map((meal) => {
                 const Icon = meal.icon;
 
                 return (
                   <button
-                    key={meal.id}
+                    key={meal.name}
                     type="button"
                     className="group rounded-2xl border border-white/10 bg-[#0d0d11] p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-[#d4af37]/30 hover:bg-[#111116]"
                   >
@@ -243,16 +378,20 @@ function Nutrition() {
                     </h3>
 
                     <p className="mt-1 text-sm text-zinc-600">
-                      {meal.description}
+                      {meal.entries.length > 0
+                        ? `${meal.entries.length} item${
+                            meal.entries.length > 1 ? "s" : ""
+                          } added`
+                        : meal.description}
                     </p>
 
                     <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4">
                       <span className="text-xs text-zinc-600">
-                        {meal.calories} kcal
+                        {Math.round(meal.calories)} kcal
                       </span>
 
                       <span className="text-xs text-zinc-600">
-                        {meal.protein}g protein
+                        {Math.round(meal.protein)}g protein
                       </span>
                     </div>
                   </button>
@@ -301,10 +440,13 @@ function Nutrition() {
               <button
                 type="button"
                 onClick={addWater}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#d4af37] px-4 py-3 font-bold text-black transition hover:bg-[#f3d58a]"
+                disabled={water >= waterGoal}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#d4af37] px-4 py-3 font-bold text-black transition hover:bg-[#f3d58a] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus className="h-4 w-4" />
-                Add glass
+                {water >= waterGoal
+                  ? "Daily goal reached"
+                  : "Add glass"}
               </button>
 
               <p className="mt-4 text-center text-xs leading-5 text-zinc-600">
@@ -315,22 +457,21 @@ function Nutrition() {
           </section>
         </div>
 
-        {/* Coming next */}
+        {/* Nutrition data status */}
         <section className="mt-8 rounded-2xl border border-[#d4af37]/10 bg-[#0d0d11] p-6 sm:p-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#d4af37]">
-                Coming next
+                GymNance nutrition
               </p>
 
               <h3 className="mt-2 text-xl font-bold">
-                Build your nutrition plan
+                Your nutrition data is now connected
               </h3>
 
               <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-600">
-                Soon you'll be able to add foods, track meals, calculate
-                macros, and get personalized nutrition guidance from your AI
-                Coach.
+                Your daily goals and hydration are stored securely for your
+                GymNance account. Meal tracking will be added next.
               </p>
             </div>
 
@@ -362,7 +503,7 @@ function MacroCard({
       </p>
 
       <p className="mt-1 text-xl font-bold">
-        {value}
+        {Math.round(value)}
         <span className="ml-1 text-xs font-normal text-zinc-600">
           {unit}
         </span>
@@ -370,13 +511,13 @@ function MacroCard({
 
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/5">
         <div
-          className="h-full rounded-full bg-[#d4af37]"
+          className="h-full rounded-full bg-[#d4af37] transition-all duration-500"
           style={{ width: `${percentage}%` }}
         />
       </div>
 
       <p className="mt-2 text-[10px] text-zinc-700">
-        Goal {goal}
+        Goal {Math.round(goal)}
         {unit}
       </p>
     </div>
