@@ -1644,6 +1644,7 @@ app.post("/api/nutrition/water", authenticateToken, async (req, res) => {
       [userId]
     );
 
+  
     res.json({
       message: "Water intake updated",
       glasses: result.rows[0].glasses,
