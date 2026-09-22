@@ -12,6 +12,7 @@ import {
   RefreshCw,
   X,
   Scale,
+  Trash2,
 } from "lucide-react";
 
 const API_URL = "http://localhost:5000";
@@ -53,7 +54,10 @@ function Nutrition() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  
   const [selectedMeal, setSelectedMeal] = useState(null);
+  const [viewingMeal, setViewingMeal] = useState(null);
+  const [deletingFood, setDeletingFood] = useState(null);
   const [foodForm, setFoodForm] = useState(emptyFoodForm);
 
   const fetchNutrition = async () => {
@@ -176,6 +180,11 @@ function Nutrition() {
     });
   }, [meals]);
 
+  const openMealDetails = (meal) => {
+  setViewingMeal(meal);
+  setError("");
+};
+
   const openMealModal = (mealName) => {
     setSelectedMeal(mealName);
     setFoodForm(emptyFoodForm);
@@ -256,6 +265,49 @@ function Nutrition() {
     );
   }
 };
+
+  const handleDeleteFood = async (mealId) => {
+    try {
+      setError("");
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("You are not logged in.");
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/nutrition/meals/${mealId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to delete food."
+        );
+      }
+
+      setDeletingFood(null);
+      setViewingMeal(null);
+
+      await fetchNutrition();
+    } catch (err) {
+      console.error("Delete food error:", err);
+
+      setDeletingFood(null);
+
+      setError(
+        err.message || "Failed to delete food."
+      );
+    }
+  };
 
   const addWater = async () => {
     try {
@@ -464,7 +516,7 @@ function Nutrition() {
                   <button
                     key={meal.name}
                     type="button"
-                    onClick={() => openMealModal(meal.name)}
+                    onClick={() => openMealDetails(meal)}
                     className="group rounded-2xl border border-white/10 bg-[#0d0d11] p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-[#d4af37]/30 hover:bg-[#111116]"
                   >
                     <div className="flex items-start justify-between">
@@ -587,7 +639,7 @@ function Nutrition() {
 
       {/* Add Food Modal */}
       {selectedMeal && (
-        <div
+        <div 
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -749,10 +801,203 @@ function Nutrition() {
           </div>
         </div>
       )}
+            {/* Meal Details Modal */}
+      {viewingMeal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setViewingMeal(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-[#0d0d11] shadow-2xl shadow-black/60">
+
+            {/* Header */}
+            <div className="border-b border-white/10 bg-gradient-to-r from-[#15120c] to-[#100c18] p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#d4af37]">
+                    Meal details
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-black">
+                    {viewingMeal.name}
+                  </h2>
+
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Today's food entries
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setViewingMeal(null)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-zinc-500 transition hover:border-[#d4af37]/30 hover:text-[#d4af37]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Food entries */}
+            <div className="max-h-[55vh] overflow-y-auto p-6">
+
+              {viewingMeal.entries.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-5 py-10 text-center">
+                  <Apple className="mx-auto h-8 w-8 text-zinc-700" />
+
+                  <h3 className="mt-4 text-base font-bold text-zinc-300">
+                    No food added yet
+                  </h3>
+
+                  <p className="mt-2 text-sm text-zinc-600">
+                    Add your first food item to start tracking this meal.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {viewingMeal.entries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+  <div>
+    <h3 className="font-bold text-zinc-200">
+      {entry.food_name}
+    </h3>
+
+    <p className="mt-1 text-xs text-zinc-600">
+      Quantity: {entry.quantity}
+    </p>
+  </div>
+
+  <div className="flex items-center gap-3">
+    <span className="text-sm font-bold text-[#d4af37]">
+      {Math.round(Number(entry.calories || 0))} kcal
+    </span>
+
+    <button
+      type="button"
+      onClick={() => setDeletingFood(entry)}
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-400/10 bg-red-400/5 text-zinc-600 transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-300"
+      title="Delete food"
+    >
+      <Trash2 className="h-4 w-4" />
+    </button>
+  </div>
+</div>
+
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-zinc-700">
+                            Protein
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            {Math.round(Number(entry.protein || 0))}g
+                          </p>
+                        </div>
+
+                        <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-zinc-700">
+                            Carbs
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            {Math.round(Number(entry.carbs || 0))}g
+                          </p>
+                        </div>
+
+                        <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-zinc-700">
+                            Fats
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            {Math.round(Number(entry.fats || 0))}g
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-white/10 p-6">
+
+              <button
+                type="button"
+                onClick={() => {
+                  const mealName = viewingMeal.name;
+
+                  setViewingMeal(null);
+                  openMealModal(mealName);
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#d4af37] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#f3d58a]"
+              >
+                <Plus className="h-4 w-4" />
+                Add Food
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Food Confirmation Modal */}
+      {deletingFood && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setDeletingFood(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-[#0d0d11] shadow-2xl shadow-black/70">
+            <div className="p-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-red-400/20 bg-red-400/10">
+                <Trash2 className="h-5 w-5 text-red-300" />
+              </div>
+
+              <h2 className="mt-5 text-xl font-black text-white">
+                Delete food?
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-zinc-500">
+                Are you sure you want to remove{" "}
+                <span className="font-semibold text-zinc-300">
+                  "{deletingFood.food_name}"
+                </span>{" "}
+                from your meal?
+              </p>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeletingFood(null)}
+                  className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-400 transition hover:border-white/20 hover:text-white"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteFood(deletingFood.id)}
+                  className="flex-1 rounded-xl bg-red-500/90 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-500"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-
 function NutritionInput({
   label,
   name,
