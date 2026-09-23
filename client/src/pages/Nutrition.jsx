@@ -13,6 +13,7 @@ import {
   X,
   Scale,
   Trash2,
+  Settings,
 } from "lucide-react";
 
 const API_URL = "http://localhost:5000";
@@ -54,6 +55,16 @@ function Nutrition() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [showGoalsModal, setShowGoalsModal] = useState(false);
+const [savingGoals, setSavingGoals] = useState(false);
+
+const [goalForm, setGoalForm] = useState({
+  calorie_goal: 2500,
+  protein_goal: 150,
+  carbs_goal: 280,
+  fats_goal: 70,
+  water_goal: 8,
+});
   
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [viewingMeal, setViewingMeal] = useState(null);
@@ -97,6 +108,75 @@ function Nutrition() {
   useEffect(() => {
     fetchNutrition();
   }, []);
+  useEffect(() => {
+  if (nutrition?.goals) {
+    setGoalForm({
+      calorie_goal: Number(nutrition.goals.calorie_goal || 2500),
+      protein_goal: Number(nutrition.goals.protein_goal || 150),
+      carbs_goal: Number(nutrition.goals.carbs_goal || 280),
+      fats_goal: Number(nutrition.goals.fats_goal || 70),
+      water_goal: Number(nutrition.goals.water_goal || 8),
+    });
+  }
+}, [nutrition]);
+const handleGoalChange = (event) => {
+  const { name, value } = event.target;
+
+  setGoalForm((current) => ({
+    ...current,
+    [name]: value,
+  }));
+};
+
+const handleSaveGoals = async (event) => {
+  event.preventDefault();
+
+  try {
+    setSavingGoals(true);
+    setError("");
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      throw new Error("You are not logged in.");
+    }
+
+    const response = await fetch(`${API_URL}/api/nutrition/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        calorie_goal: Number(goalForm.calorie_goal),
+        protein_goal: Number(goalForm.protein_goal),
+        carbs_goal: Number(goalForm.carbs_goal),
+        fats_goal: Number(goalForm.fats_goal),
+        water_goal: Number(goalForm.water_goal),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Failed to save nutrition goals."
+      );
+    }
+
+    setShowGoalsModal(false);
+
+    await fetchNutrition();
+  } catch (err) {
+    console.error("Save nutrition goals error:", err);
+
+    setError(
+      err.message || "Failed to save nutrition goals."
+    );
+  } finally {
+    setSavingGoals(false);
+  }
+};
 
   const goals = nutrition?.goals || {
     calorie_goal: 2500,
@@ -406,21 +486,28 @@ function Nutrition() {
         {/* Daily Overview */}
         <section className="mb-8 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#12100c] via-[#0c0c10] to-[#100c18] p-6 shadow-2xl sm:p-8">
 
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#d4af37]">
-                Daily overview
-              </p>
+          <div className="mb-8 flex items-center justify-between gap-4">
+  <div>
+    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#d4af37]">
+      Daily overview
+    </p>
 
-              <h2 className="mt-2 text-2xl font-bold">
-                Today's targets
-              </h2>
-            </div>
+    <h2 className="mt-2 text-2xl font-bold">
+      Today's targets
+    </h2>
+  </div>
 
-            <div className="hidden rounded-full border border-[#d4af37]/20 bg-[#d4af37]/5 px-4 py-2 text-xs text-[#d4af37] sm:block">
-              Personalized goals
-            </div>
-          </div>
+  <button
+    type="button"
+    onClick={() => setShowGoalsModal(true)}
+    className="flex shrink-0 items-center gap-2 rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/5 px-4 py-2.5 text-xs font-semibold text-[#d4af37] transition hover:border-[#d4af37]/40 hover:bg-[#d4af37]/10"
+  >
+    <Settings className="h-4 w-4" />
+    <span className="hidden sm:inline">
+      Edit Goals
+    </span>
+  </button>
+</div>
 
           <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
 
@@ -636,6 +723,107 @@ function Nutrition() {
         </section>
 
       </div>
+
+      {/* Nutrition Goals Modal */}
+      {showGoalsModal && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 py-6 backdrop-blur-md"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowGoalsModal(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-[#0d0d11] shadow-2xl shadow-black/70">
+            <div className="border-b border-white/10 bg-gradient-to-r from-[#15120c] to-[#100c18] p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#d4af37]">
+                    Personal nutrition
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black">
+                    Your daily goals
+                  </h2>
+                  <p className="mt-2 text-sm leading-5 text-zinc-500">
+                    Set your personal nutrition targets. Your changes will be
+                    saved to your GymNance account.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGoalsModal(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-zinc-500 transition hover:border-[#d4af37]/30 hover:text-[#d4af37]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveGoals} className="space-y-5 p-6">
+              <GoalInput
+                label="Daily Calories"
+                name="calorie_goal"
+                value={goalForm.calorie_goal}
+                onChange={handleGoalChange}
+                unit="kcal"
+              />
+              <GoalInput
+                label="Protein"
+                name="protein_goal"
+                value={goalForm.protein_goal}
+                onChange={handleGoalChange}
+                unit="g"
+              />
+              <GoalInput
+                label="Carbohydrates"
+                name="carbs_goal"
+                value={goalForm.carbs_goal}
+                onChange={handleGoalChange}
+                unit="g"
+              />
+              <GoalInput
+                label="Fats"
+                name="fats_goal"
+                value={goalForm.fats_goal}
+                onChange={handleGoalChange}
+                unit="g"
+              />
+              <GoalInput
+                label="Water"
+                name="water_goal"
+                value={goalForm.water_goal}
+                onChange={handleGoalChange}
+                unit="glasses"
+              />
+
+              <div className="flex gap-3 border-t border-white/5 pt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowGoalsModal(false)}
+                  disabled={savingGoals}
+                  className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-400 transition hover:border-white/20 hover:text-white disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingGoals}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#d4af37] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#f3d58a] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingGoals ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Goals"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add Food Modal */}
       {selectedMeal && (
@@ -998,6 +1186,36 @@ function Nutrition() {
     </div>
   );
 }
+function GoalInput({
+  label,
+  name,
+  value,
+  onChange,
+  unit,
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          type="number"
+          min="1"
+          step="1"
+          name={name}
+          value={value}
+          onChange={onChange}
+          className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3.5 pr-20 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-[#d4af37]/40"
+        />
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-600">
+          {unit}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function NutritionInput({
   label,
   name,

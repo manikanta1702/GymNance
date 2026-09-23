@@ -1464,12 +1464,25 @@ app.put("/api/nutrition/profile", authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     const {
-      calorieGoal,
-      proteinGoal,
-      carbsGoal,
-      fatsGoal,
-      waterGoal,
+      calorie_goal,
+      protein_goal,
+      carbs_goal,
+      fats_goal,
+      water_goal,
     } = req.body;
+
+    // Validate nutrition goals
+    if (
+      calorie_goal === undefined ||
+      protein_goal === undefined ||
+      carbs_goal === undefined ||
+      fats_goal === undefined ||
+      water_goal === undefined
+    ) {
+      return res.status(400).json({
+        message: "All nutrition goals are required",
+      });
+    }
 
     const result = await pool.query(
       `
@@ -1499,11 +1512,11 @@ app.put("/api/nutrition/profile", authenticateToken, async (req, res) => {
       `,
       [
         userId,
-        calorieGoal,
-        proteinGoal,
-        carbsGoal,
-        fatsGoal,
-        waterGoal,
+        Number(calorie_goal),
+        Number(protein_goal),
+        Number(carbs_goal),
+        Number(fats_goal),
+        Number(water_goal),
       ]
     );
 
